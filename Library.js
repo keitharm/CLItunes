@@ -12,13 +12,15 @@ var mm        = require('musicmetadata');
 var recursive = require('recursive-readdir');
 
 var Library = function(path) {
-  this.init();
   this.songs = [];
+  this.init();
 };
 
 Library.prototype.init = function() {
   this.loadConfig();
-  this.loadSongs();
+  this.loadSongs(function() {
+    console.log(this.songs.length);
+  }.bind(this));
 };
 
 // Load the config file or create it if it doesn't exist
@@ -38,13 +40,31 @@ Library.prototype.loadConfig = function() {
 };
 
 // Load in all of the song data and parse with mm for song info
-Library.prototype.loadSongs = function() {
-  var paths = this.getPaths();
+Library.prototype.loadSongs = function(cb) {
+  var locs = this.getPaths();
+  var self = this;
+  var ext  = this.getExtensions();
+  this.songs = [];
 
-  // Go through each path and scan for songs
-  _.each(paths, function(path) {
-    recursive(path, function (err, files) {
-      console.log(files.length);
+  var pathsFetched = 0;
+  var totalPaths   = locs.length;
+  // Go through each loc and scan for songs
+  _.each(locs, function(loc) {
+
+    // Recursively scan loc
+    recursive(loc, function (err, songs) {
+
+      // For each file, check if it is an extension we are looking for
+      _.each(songs, function(song) {
+        if (ext.indexOf(path.extname(song).slice(1)) !== -1) {
+          self.songs.push(song);
+        }
+      });
+
+      // Only execute callback once all paths have been traversed
+      if (++pathsFetched === totalPaths) {
+        cb();
+      }
     });
   });
 };
@@ -52,6 +72,10 @@ Library.prototype.loadSongs = function() {
 // Returns all of the paths of the songs in the config file
 Library.prototype.getPaths = function() {
   return this.config.paths;
+};
+
+Library.prototype.getExtensions = function() {
+  return this.config.extensions;
 };
 
 module.exports = Library;
