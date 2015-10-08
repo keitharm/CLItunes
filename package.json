@@ -1,0 +1,18 @@
+{
+  "name": "CLItunes",
+  "version": "1.0.0",
+  "description": "iTunes (and more) for the Command Line!",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "charm": "^1.0.0",
+    "convert-seconds": "^1.0.0",
+    "lodash": "^3.10.1",
+    "musicmetadata": "^2.0.1",
+    "scan-folder": "^1.0.0"
+  }
+}
