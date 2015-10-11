@@ -10,18 +10,59 @@ var _         = require('lodash');
 var convert   = require('convert-seconds');
 var probe     = require('node-ffprobe');
 var recursive = require('recursive-readdir');
+var sha1      = require('sha1');
+var async     = require('async');
+var numeral   = require('numeral');
+var charm     = require('charm')();
+var pack      = require('./package.json');
 
 var Library = function(path) {
+  charm.pipe(process.stdout);
+  charm.reset();
+  charm.cursor(false);
   this.songs = [];
   this.init();
 };
 
 Library.prototype.init = function() {
-  this.loadConfig();
-  this.loadLibrary();
-  this.loadSongs(function() {
-    console.log(this.songs.length);
-  }.bind(this));
+  var self = this;
+  async.series([
+    function(cb) {
+      console.log("Loading CLItunes version " + pack.version + "...\n")
+      self.loadConfig();
+      self.loadLibrary();
+      cb();
+    },
+    function(cb) {
+      console.log("Loading song paths.")
+      self.loadSongs(function() {
+        console.log(format(self.songs.length) + " total songs detected...");
+        setTimeout(function() {
+          cb();
+        }, 250);
+      });
+    },
+    function(cb) {
+      console.log("\nCalculating checksums to detect new songs...");
+      self.performChecksum(function() {
+        cb();
+      });
+    },
+    function(cb) {
+      console.log("\n");
+      self.scan(function() {
+        if (Object.keys(self.uniq)) {
+          console.log("Importing " + format(Object.keys(self.uniq).length) + " new songs...");
+        }
+      });
+    },
+    function(cb) {
+
+    },
+    function() {
+      charm.cursor(true);
+    }
+  ]);
 };
 
 // Load the config file or create it if it doesn't exist
@@ -51,8 +92,75 @@ Library.prototype.loadLibrary = function() {
   }
 };
 
-// Load in all of the song data and parse with mm for song info
-// Store in library file if it is unique/first time encounter
+// Checksum the filepath to see if there are new files
+Library.prototype.performChecksum = function(cb) {
+  var complete = 0;
+  var self = this;
+
+  this.sums = {};
+  _.each(self.songs, function(path) {
+      self.sums[sha1(path)] = path;
+      //checksum.file(path, function (err, sum) {
+      //  self.sums[path] = sum;
+      //  console.log(++complete + "/" + self.songs.length);
+      //});
+      process.stdout.write(format(++complete) + "/" + format(self.songs.length));
+      charm.left(100);
+  });
+  cb();
+};
+
+Library.prototype.scan = function(cb) {
+  this.uniq = {};
+  var self = this;
+
+  _.each(self.sums, function(sum, key) {
+    // If sum was not found in library
+
+    if (!(sum in self.library)) {
+      self.uniq[key] = sum;
+    }
+  });
+  cb();
+};
+
+Library.prototype.extractMetaData = function() {
+  var songsProcessed = 0;
+
+  _.each(this.songs, function(song) {
+
+    // Valid song with extension from extensions list found
+    if (ext.indexOf(path.extname(song).slice(1)) !== -1) {
+      totalSongs++;
+
+      probe(song, function(err, probeData) {
+        songsProcessed++;
+        if (err) probeData = { error: true };
+        var data = {
+          id: 0,
+          filename: probeData.filename,
+          file: probeData.file,
+          filexext: probeData.fileext,
+          duration: probeData.streams[0].duration,
+          title: probeData.metadata.title,
+          artist: probeData.metadata.artist,
+          album: probeData.metadata.album,
+          genre: probeData.metadata.genre,
+          track: probeData.metadata.track,
+          date: probeData.metadata.date
+        };
+        console.log(data);
+        //console.log(songsProcessed, totalSongs);
+        if (songsProcessed === totalSongs && pathsFetched === totalPaths) {
+          console.log("Done with node-ffprobe and pathsFetched");
+          cb();
+        };
+      });
+    }
+  });
+}
+
+// Load in all of the song locations that match extensions
 Library.prototype.loadSongs = function(cb) {
   var locs = this.getPaths();
   var self = this;
@@ -60,11 +168,9 @@ Library.prototype.loadSongs = function(cb) {
   this.songs = [];
   this.library = {};
 
-  var pathsFetched   = 0;
   var totalPaths     = locs.length;
+  var pathsFetched   = 0;
   var totalSongs     = 0;
-  var blah           = 0;
-  var songsProcessed = 0;
 
   // Go through each loc and scan for songs
   _.each(locs, function(loc) {
@@ -77,34 +183,12 @@ Library.prototype.loadSongs = function(cb) {
 
         // Valid song with extension from extensions list found
         if (ext.indexOf(path.extname(song).slice(1)) !== -1) {
-          totalSongs++;
-
-          probe(song, function(err, probeData) {
-            songsProcessed++;
-            if (err) probeData = { error: true };
-            var data = {
-              id: 0,
-              filename: probeData.filename,
-              file: probeData.file,
-              filexext: probeData.fileext,
-              duration: probeData.streams[0].duration,
-              title: probeData.metadata.title,
-              artist: probeData.metadata.artist,
-              album: probeData.metadata.album,
-              genre: probeData.metadata.genre,
-              track: probeData.metadata.track,
-              date: probeData.metadata.date
-            };
-            console.log(data);
-            //console.log(songsProcessed, totalSongs);
-            if (songsProcessed === totalSongs && pathsFetched === totalPaths) {
-              console.log("Done with node-ffprobe and pathsFetched");
-              cb();
-            };
-          });
+          self.songs.push(song);
         }
       });
-      ++pathsFetched;
+      if (++pathsFetched === totalPaths) {
+        cb();
+      }
     });
   });
 };
@@ -121,5 +205,9 @@ Library.prototype.getExtensions = function() {
 Library.prototype.saveLibrary = function() {
   fs.writeFileSync(process.env.HOME + "/.CLItunesLibrary.json", JSON.stringify(this.library));
 };
+
+function format(num) {
+  return numeral(num).format('0,0');
+}
 
 module.exports = Library;
