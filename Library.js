@@ -30,36 +30,43 @@ Library.prototype.init = function() {
   var self = this;
   async.series([
     function(cb) {
-      console.log("Loading CLItunes version " + pack.version + "...\n")
+      console.log("Loading CLItunes version " + pack.version + "\n")
       self.loadConfig();
       self.loadLibrary();
       cb();
     },
     function(cb) {
-      console.log("Loading song paths.")
+      console.log("Loading song paths")
       self.loadSongs(function() {
-        console.log(format(self.songs.length) + " total songs detected...");
+        console.log(format(self.songs.length) + " total songs detected");
         setTimeout(function() {
           cb();
         }, 250);
       });
     },
     function(cb) {
-      console.log("\nCalculating checksums to detect new songs...");
-      self.performChecksum(function() {
-        cb();
-      });
+      if (self.scanCheckSum !== self.config.checkSum) {
+        console.log("\nCalculating checksums to detect new songs");
+        self.performChecksum(function() {
+          cb();
+        });
+      }
     },
     function(cb) {
       console.log("\n");
       self.scan(function() {
         if (Object.keys(self.uniq)) {
-          console.log("Importing " + format(Object.keys(self.uniq).length) + " new songs...");
+          // Scan lib will contain the temporary library item that'll be merged
+          // with the original CLItunesLibrary.json item
+          self.scanLib = {};
+
+          console.log("\nImporting " + format(Object.keys(self.uniq).length) + " new songs");
+          self.extractMetaData(cb);
         }
       });
     },
     function(cb) {
-
+      console.log("\nDone!");
     },
     function() {
       charm.cursor(true);
@@ -77,7 +84,9 @@ Library.prototype.loadConfig = function() {
       extensions: ["mp3", "m4a"],  // Extensions to search for to play with afplay
       paths: [
         process.env.HOME + "/Music/iTunes/iTunes Media/Music" // Add iTunes path by default
-      ]
+      ],
+      checkSum: null,  // Checksum of the last library scan - used to determine if new songs have been added
+      index: 0  // uniq idfor each song
     };
     fs.writeFileSync(process.env.HOME + "/.CLItunes.json", JSON.stringify(this.config, null, 2));
   }
@@ -109,7 +118,6 @@ Library.prototype.performChecksum = function(cb) {
       console.log(format(++complete) + "/" + format(self.songs.length));
       console.log(utils.progress(complete, self.songs.length));
       charm.up(1);
-      charm.left(100);
   });
   cb();
 };
@@ -128,20 +136,19 @@ Library.prototype.scan = function(cb) {
   cb();
 };
 
-Library.prototype.extractMetaData = function() {
+Library.prototype.extractMetaData = function(cb) {
   var songsProcessed = 0;
+  var totalSongs = Object.keys(this.uniq).length;
+  var self = this;
 
-  _.each(this.songs, function(song) {
-
-    // Valid song with extension from extensions list found
-    if (ext.indexOf(path.extname(song).slice(1)) !== -1) {
-      totalSongs++;
-
-      probe(song, function(err, probeData) {
-        songsProcessed++;
-        if (err) probeData = { error: true };
-        var data = {
-          id: 0,
+  async.forEachOfLimit(this.uniq, 25, function(song, key, callback) {
+    probe(song, function(err, probeData) {
+      var data;
+      if (err) {
+        data = { error: err };
+      } else {
+        data = {
+          id: ++self.config.index,
           filename: probeData.filename,
           file: probeData.file,
           filexext: probeData.fileext,
@@ -153,14 +160,19 @@ Library.prototype.extractMetaData = function() {
           track: probeData.metadata.track,
           date: probeData.metadata.date
         };
-        console.log(data);
-        //console.log(songsProcessed, totalSongs);
-        if (songsProcessed === totalSongs && pathsFetched === totalPaths) {
-          console.log("Done with node-ffprobe and pathsFetched");
-          cb();
-        };
-      });
-    }
+      }
+      //console.log(song);
+      self.scanLib[key] = data;
+
+      console.log(format(++songsProcessed) + "/" + format(totalSongs));
+      console.log(utils.progress(songsProcessed, totalSongs));
+      charm.up(1);
+      callback();
+    });
+  }, function(err) {
+    if (songsProcessed === totalSongs) {
+      cb();
+    };
   });
 }
 
@@ -191,6 +203,8 @@ Library.prototype.loadSongs = function(cb) {
         }
       });
       if (++pathsFetched === totalPaths) {
+        self.songs.sort();
+        self.scanCheckSum = sha1(JSON.stringify(self.songs));
         cb();
       }
     });
