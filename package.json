@@ -16,6 +16,7 @@
     "node-ffprobe": "^1.2.2",
     "numeral": "^1.5.3",
     "recursive-readdir": "^1.2.1",
+    "repeat-string": "^1.5.2",
     "scan-folder": "^1.0.0",
     "sha1": "^1.1.1"
   }

@@ -14,6 +14,8 @@ var sha1      = require('sha1');
 var async     = require('async');
 var numeral   = require('numeral');
 var charm     = require('charm')();
+
+var utils     = require('./utils');
 var pack      = require('./package.json');
 
 var Library = function(path) {
@@ -104,7 +106,9 @@ Library.prototype.performChecksum = function(cb) {
       //  self.sums[path] = sum;
       //  console.log(++complete + "/" + self.songs.length);
       //});
-      process.stdout.write(format(++complete) + "/" + format(self.songs.length));
+      console.log(format(++complete) + "/" + format(self.songs.length));
+      console.log(utils.progress(complete, self.songs.length));
+      charm.up(1);
       charm.left(100);
   });
   cb();
