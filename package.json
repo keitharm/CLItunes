@@ -12,7 +12,7 @@
     "charm": "^1.0.0",
     "convert-seconds": "^1.0.0",
     "lodash": "^3.10.1",
-    "musicmetadata": "^2.0.1",
+    "node-ffprobe": "^1.2.2",
     "recursive-readdir": "^1.2.1",
     "scan-folder": "^1.0.0"
   }

@@ -8,7 +8,7 @@ var path      = require('path');
 var spawn     = require('child_process').spawn;
 var _         = require('lodash');
 var convert   = require('convert-seconds');
-var mm        = require('musicmetadata');
+var probe     = require('node-ffprobe');
 var recursive = require('recursive-readdir');
 
 var Library = function(path) {
@@ -18,6 +18,7 @@ var Library = function(path) {
 
 Library.prototype.init = function() {
   this.loadConfig();
+  this.loadLibrary();
   this.loadSongs(function() {
     console.log(this.songs.length);
   }.bind(this));
@@ -39,15 +40,32 @@ Library.prototype.loadConfig = function() {
   }
 };
 
+// Library contains the DB of all the song data
+// loaded in from the provided paths
+Library.prototype.loadLibrary = function() {
+  try {
+    this.library = JSON.parse(fs.readFileSync(process.env.HOME + "/.CLItunesLibrary.json"));
+  } catch (e) {
+    this.library = {}
+    fs.writeFileSync(process.env.HOME + "/.CLItunesLibrary.json", JSON.stringify({}));
+  }
+};
+
 // Load in all of the song data and parse with mm for song info
+// Store in library file if it is unique/first time encounter
 Library.prototype.loadSongs = function(cb) {
   var locs = this.getPaths();
   var self = this;
   var ext  = this.getExtensions();
   this.songs = [];
+  this.library = {};
 
-  var pathsFetched = 0;
-  var totalPaths   = locs.length;
+  var pathsFetched   = 0;
+  var totalPaths     = locs.length;
+  var totalSongs     = 0;
+  var blah           = 0;
+  var songsProcessed = 0;
+
   // Go through each loc and scan for songs
   _.each(locs, function(loc) {
 
@@ -56,15 +74,37 @@ Library.prototype.loadSongs = function(cb) {
 
       // For each file, check if it is an extension we are looking for
       _.each(songs, function(song) {
+
+        // Valid song with extension from extensions list found
         if (ext.indexOf(path.extname(song).slice(1)) !== -1) {
-          self.songs.push(song);
+          totalSongs++;
+
+          probe(song, function(err, probeData) {
+            songsProcessed++;
+            if (err) probeData = { error: true };
+            var data = {
+              id: 0,
+              filename: probeData.filename,
+              file: probeData.file,
+              filexext: probeData.fileext,
+              duration: probeData.streams[0].duration,
+              title: probeData.metadata.title,
+              artist: probeData.metadata.artist,
+              album: probeData.metadata.album,
+              genre: probeData.metadata.genre,
+              track: probeData.metadata.track,
+              date: probeData.metadata.date
+            };
+            console.log(data);
+            //console.log(songsProcessed, totalSongs);
+            if (songsProcessed === totalSongs && pathsFetched === totalPaths) {
+              console.log("Done with node-ffprobe and pathsFetched");
+              cb();
+            };
+          });
         }
       });
-
-      // Only execute callback once all paths have been traversed
-      if (++pathsFetched === totalPaths) {
-        cb();
-      }
+      ++pathsFetched;
     });
   });
 };
@@ -76,6 +116,10 @@ Library.prototype.getPaths = function() {
 
 Library.prototype.getExtensions = function() {
   return this.config.extensions;
+};
+
+Library.prototype.saveLibrary = function() {
+  fs.writeFileSync(process.env.HOME + "/.CLItunesLibrary.json", JSON.stringify(this.library));
 };
 
 module.exports = Library;
