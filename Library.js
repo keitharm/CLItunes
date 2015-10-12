@@ -19,11 +19,18 @@ var utils     = require('./utils');
 var pack      = require('./package.json');
 
 var Library = function(path) {
+  var self = this;
+
   charm.pipe(process.stdout);
   charm.reset();
   charm.cursor(false);
   this.songs = [];
   this.init();
+
+  process.on('SIGINT', function() {
+    self.updateLibrary();
+    process.exit();
+  });
 };
 
 Library.prototype.init = function() {
@@ -32,8 +39,9 @@ Library.prototype.init = function() {
     function(cb) {
       console.log("Loading CLItunes version " + pack.version + "\n")
       self.loadConfig();
-      self.loadLibrary();
-      cb();
+      self.loadLibrary(function() {
+        cb();
+      });
     },
     function(cb) {
       console.log("Loading song paths")
@@ -66,7 +74,8 @@ Library.prototype.init = function() {
       });
     },
     function(cb) {
-      console.log("\nDone!");
+      console.log("\n\nDone! Updating Library File...");
+      self.updateLibrary();
     },
     function() {
       charm.cursor(true);
@@ -94,12 +103,14 @@ Library.prototype.loadConfig = function() {
 
 // Library contains the DB of all the song data
 // loaded in from the provided paths
-Library.prototype.loadLibrary = function() {
+Library.prototype.loadLibrary = function(cb) {
   try {
     this.library = JSON.parse(fs.readFileSync(process.env.HOME + "/.CLItunesLibrary.json"));
+    cb();
   } catch (e) {
     this.library = {}
     fs.writeFileSync(process.env.HOME + "/.CLItunesLibrary.json", JSON.stringify({}));
+    cb();
   }
 };
 
@@ -116,8 +127,7 @@ Library.prototype.performChecksum = function(cb) {
       //  console.log(++complete + "/" + self.songs.length);
       //});
       console.log(format(++complete) + "/" + format(self.songs.length));
-      console.log(utils.progress(complete, self.songs.length));
-      charm.up(1);
+      utils.progress(complete, self.songs.length);
   });
   cb();
 };
@@ -125,11 +135,9 @@ Library.prototype.performChecksum = function(cb) {
 Library.prototype.scan = function(cb) {
   this.uniq = {};
   var self = this;
-
   _.each(self.sums, function(sum, key) {
-    // If sum was not found in library
-
-    if (!(sum in self.library)) {
+    // If key was not found in library, new song found
+    if (!(key in self.library)) {
       self.uniq[key] = sum;
     }
   });
@@ -165,8 +173,7 @@ Library.prototype.extractMetaData = function(cb) {
       self.scanLib[key] = data;
 
       console.log(format(++songsProcessed) + "/" + format(totalSongs));
-      console.log(utils.progress(songsProcessed, totalSongs));
-      charm.up(1);
+      utils.progress(songsProcessed, totalSongs);
       callback();
     });
   }, function(err) {
@@ -182,7 +189,6 @@ Library.prototype.loadSongs = function(cb) {
   var self = this;
   var ext  = this.getExtensions();
   this.songs = [];
-  this.library = {};
 
   var totalPaths     = locs.length;
   var pathsFetched   = 0;
@@ -220,7 +226,8 @@ Library.prototype.getExtensions = function() {
   return this.config.extensions;
 };
 
-Library.prototype.saveLibrary = function() {
+Library.prototype.updateLibrary = function() {
+  _.extend(this.library, this.scanLib);
   fs.writeFileSync(process.env.HOME + "/.CLItunesLibrary.json", JSON.stringify(this.library));
 };
 
