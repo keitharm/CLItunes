@@ -18,14 +18,14 @@ var charm     = require('charm')();
 var utils     = require('./utils');
 var pack      = require('./package.json');
 
-var Library = function(path) {
+var Library = function(cb) {
   var self = this;
 
   charm.pipe(process.stdout);
   charm.reset();
   charm.cursor(false);
   this.songs = [];
-  this.init();
+  this.init(cb);
 
   process.on('SIGINT', function() {
     self.updateLibrary();
@@ -33,7 +33,7 @@ var Library = function(path) {
   });
 };
 
-Library.prototype.init = function() {
+Library.prototype.init = function(cb) {
   var self = this;
   async.series([
     function(cb) {
@@ -76,8 +76,10 @@ Library.prototype.init = function() {
     function(cb) {
       console.log("\n\nDone! Updating Library File...");
       self.updateLibrary();
+      cb();
     },
     function() {
+      cb();
       charm.cursor(true);
     }
   ]);
