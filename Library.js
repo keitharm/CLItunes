@@ -20,10 +20,6 @@ var pack      = require('./package.json');
 
 var Library = function(cb) {
   var self = this;
-
-  charm.pipe(process.stdout);
-  charm.reset();
-  charm.cursor(false);
   this.songs = [];
   this.init(cb);
 
@@ -37,7 +33,6 @@ Library.prototype.init = function(cb) {
   var self = this;
   async.series([
     function(cb) {
-      console.log("Loading CLItunes version " + pack.version + "\n")
       self.loadConfig();
       self.loadLibrary(function() {
         cb();
@@ -168,7 +163,8 @@ Library.prototype.extractMetaData = function(cb) {
           album: probeData.metadata.album,
           genre: probeData.metadata.genre,
           track: probeData.metadata.track,
-          date: probeData.metadata.date
+          date: probeData.metadata.date,
+          playCount: 0
         };
       }
       //console.log(song);
@@ -217,6 +213,17 @@ Library.prototype.loadSongs = function(cb) {
       }
     });
   });
+};
+
+Library.prototype.play = function(song) {
+  this.stop();
+  this.child = spawn('afplay', [song]);
+};
+
+Library.prototype.stop = function() {
+  try {
+    this.child.kill()
+  } catch (e) {}
 };
 
 // Returns all of the paths of the songs in the config file
