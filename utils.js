@@ -15,7 +15,7 @@ var progress = function(current, total) {
   var r_half = rows/2;
 
   var done = Math.round((current/total)*c_half);
-  var perc = Math.round((done*100)/c_half);
+  var perc = Math.round(((current/total)*100));
   var remain = c_half-done;
   console.log("[" + repeat("=", done) + ">" + repeat("-", remain) + "] " + perc + "%");
   charm.up(1);
