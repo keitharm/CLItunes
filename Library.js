@@ -19,6 +19,7 @@ var utils     = require('./utils');
 var pack      = require('./package.json');
 
 var Library = function(cb) {
+  charm.pipe(process.stdout);
   var self = this;
   this.songs = [];
   this.init(cb);
@@ -210,6 +211,7 @@ Library.prototype.loadSongs = function(cb) {
         self.songs.sort();
         self.scanCheckSum = sha1(JSON.stringify(self.songs));
         cb();
+        //self.config.checkSum = self.scanCheckSum;
       }
     });
   });

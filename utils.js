@@ -1,6 +1,6 @@
 var charm  = require('charm')();
 var repeat = require('repeat-string');
-
+var exec   = require('child_process').exec;
 
 var pad = function(n, width, z) {
   z = z || '0';
@@ -21,5 +21,12 @@ var progress = function(current, total) {
   charm.up(1);
 };
 
+var albumArtWork = function(rows, song, cb) {
+  var command = exec("ffmpeg -i \"" + song + "\" -an -vcodec copy /tmp/CLItunes_cover.jpg -y -v 0&& jp2a /tmp/CLItunes_cover.jpg --height=" + rows/2 + "  --colors", function (error, stdout, stderr) {
+    cb(stdout);
+  });
+};
+
 module.exports.pad = pad;
 module.exports.progress = progress;
+module.exports.albumArtWork = albumArtWork;

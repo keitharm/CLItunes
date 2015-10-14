@@ -13,6 +13,7 @@
     "blessed": "^0.1.81",
     "charm": "^1.0.0",
     "convert-seconds": "^1.0.0",
+    "jp2a": "^0.2.0",
     "lodash": "^3.10.1",
     "node-ffprobe": "^1.2.2",
     "numeral": "^1.5.3",
