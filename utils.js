@@ -8,7 +8,8 @@ var pad = function(n, width, z) {
   return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
 };
 
-var progress = function(current, total) {
+var progress = function(current, total, useCharm) {
+  useCharm = useCharm || false;
   var cols   = process.stdout.columns;
   var rows   = process.stdout.rows;
   var c_half = cols/2;
@@ -17,8 +18,18 @@ var progress = function(current, total) {
   var done = Math.round((current/total)*c_half);
   var perc = Math.round(((current/total)*100));
   var remain = c_half-done;
-  console.log("[" + repeat("=", done) + ">" + repeat("-", remain) + "] " + perc + "%");
-  charm.up(1);
+  if (String(remain) === "NaN") {
+    remain = 100;
+    perc = 0;
+  }
+
+  var text = "[" + repeat("=", done) + ">" + repeat("-", remain) + "] " + perc + "%";
+  if (useCharm) {
+    console.log(text);
+    charm.up(1);
+  } else {
+    return text;
+  }
 };
 
 var albumArtWork = function(rows, song, cb) {

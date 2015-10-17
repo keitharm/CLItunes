@@ -125,7 +125,7 @@ Library.prototype.performChecksum = function(cb) {
       //  console.log(++complete + "/" + self.songs.length);
       //});
       console.log(format(++complete) + "/" + format(self.songs.length));
-      utils.progress(complete, self.songs.length);
+      utils.progress(complete, self.songs.length, true);
   });
   cb();
 };
@@ -172,7 +172,7 @@ Library.prototype.extractMetaData = function(cb) {
       self.scanLib[key] = data;
 
       console.log(format(++songsProcessed) + "/" + format(totalSongs));
-      utils.progress(songsProcessed, totalSongs);
+      utils.progress(songsProcessed, totalSongs, true);
       callback();
     });
   }, function(err) {
@@ -220,12 +220,21 @@ Library.prototype.loadSongs = function(cb) {
 Library.prototype.play = function(song) {
   this.stop();
   this.child = spawn('afplay', [song]);
+
+  var self = this;
+  this.child.on('close', function (code) {
+    self.playRandomSong();
+  });
 };
 
 Library.prototype.stop = function() {
   try {
     this.child.kill()
   } catch (e) {}
+};
+
+Library.prototype.playRandomSong = function() {
+  this.play(player.songPath[Math.floor(Math.random() * player.songPath.length)]);
 };
 
 // Returns all of the paths of the songs in the config file

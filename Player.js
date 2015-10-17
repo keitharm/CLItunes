@@ -17,6 +17,7 @@ var pack     = require('./package.json');
 var Player = function(cb) {
   this.songList = [];
   this.songPath = [];
+
   var self = this;
   this.songList.push([ 'Song',  'Artist',  'Album', 'Duration', 'Play Count'  ])
   _.each(library.library, function(song) {
@@ -44,6 +45,17 @@ var Player = function(cb) {
   this.init();
   this.screenSetup();
   this.browse();
+  this.time = blessed.text({
+    top: 25,
+    content: this.timeBar(0),
+    left: 'center',
+    width: '60%',
+    align: 'center'
+  });
+
+  this.screen.append(this.time);
+
+  this.screen.render();
   cb()
 };
 
@@ -114,6 +126,9 @@ Player.prototype.browse = function() {
     //width: 'shrink',
     vi: true,
     mouse: true,
+    search: function(cb) {
+
+    },
     style: {
       header: {
         fg: 'green',
@@ -181,10 +196,11 @@ Player.prototype.browse = function() {
 
   table.on('select', function(item, select) {
     library.play(self.songPath[select-1]);
+    self.screen.debug(self.songList[select-1]);
 
     var over = blessed.box({
       top: Math.ceil(process.stdout.rows/2)+3,
-      left: '40%',
+      left: '38%',
       width: '50%',
       height: Math.ceil(process.stdout.rows/2)-3,
       content: ''
@@ -237,6 +253,25 @@ Player.prototype.showCursor = function(show) {
   } else {
     charm.cursor(false);
   }
+};
+
+Player.prototype.timeBar = function(duration) {
+  var dur = convert(Math.floor(duration));
+  return "0:00 " + utils.progress(0, Math.floor(duration), false) + " " + dur.minutes + ":" + utils.pad(dur.seconds, 2);
+};
+
+Player.prototype.startTimeBar = function(duration) {
+  time = blessed.text({
+    top: 25,
+    content: this.timeBar(0),
+    left: 'center',
+    width: '60%',
+    align: 'center'
+  });
+
+  this.screen.append(time);
+
+  this.screen.render();
 };
 
 module.exports = Player;
