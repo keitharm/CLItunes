@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var Library = require("./Library");
 var Player  = require('./Player');
 var charm   = require('charm')();
